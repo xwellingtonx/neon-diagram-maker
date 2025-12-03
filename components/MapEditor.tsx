@@ -1,10 +1,10 @@
 
 import React, { useState, useEffect } from 'react';
-import { MousePointer2, Circle, Square, ArrowRight, Trash2, RotateCcw, Type, Palette, AlignCenter, Sliders, Activity, Droplets, ChevronsUp, ChevronsDown, Save, Home, Settings, Tag, Eye, EyeOff } from 'lucide-react';
+import { MousePointer2, Circle, Square, ArrowRight, Trash2, RotateCcw, Type, Palette, AlignCenter, Sliders, Activity, Droplets, ChevronsUp, ChevronsDown, Save, Home, Settings, Tag, Eye, EyeOff, Image, Search, ExternalLink } from 'lucide-react';
 import { Node, Link } from '../types';
 
 interface EditorPanelProps {
-    tool: 'SELECT' | 'RECT' | 'CIRCLE' | 'CONNECT' | 'TEXT';
+    tool: 'SELECT' | 'RECT' | 'CIRCLE' | 'CONNECT' | 'TEXT' | 'SVG';
     setTool: (t: any) => void;
     selection: { nodes: string[], links: string[] };
     nodes: Node[];
@@ -134,9 +134,10 @@ const EditorPanel: React.FC<EditorPanelProps> = ({
     const representativeLink = firstLinkId ? links.find(l => l.id === firstLinkId) : null;
 
     // --- Visibility Logic ---
-    const isCreatingNode = ['RECT', 'CIRCLE', 'TEXT'].includes(tool);
+    const isCreatingNode = ['RECT', 'CIRCLE', 'TEXT', 'SVG'].includes(tool);
     const isCreatingLink = tool === 'CONNECT';
     const isSelectMode = tool === 'SELECT';
+    const isSvgSelected = representativeNode?.type === 'svg';
     
     // Auto-close settings if user interacts with tools or selection
     useEffect(() => {
@@ -158,10 +159,10 @@ const EditorPanel: React.FC<EditorPanelProps> = ({
         if (showGlobalSettings) return 'Global Settings';
         if (isSelectMode) {
             if (multipleSelected) return `Selected (${selection.nodes.length + selection.links.length})`;
-            if (isNodeSelected) return 'Node Properties';
+            if (isNodeSelected) return isSvgSelected ? 'Icon Node Properties' : 'Node Properties';
             if (isLinkSelected) return 'Link Properties';
         }
-        if (isCreatingNode) return 'New Node Style';
+        if (isCreatingNode) return tool === 'SVG' ? 'New Icon Node' : 'New Node Style';
         if (isCreatingLink) return 'New Link Style';
         return 'Settings';
     };
@@ -188,18 +189,17 @@ const EditorPanel: React.FC<EditorPanelProps> = ({
     const displayLabelColor = isNodeSelected ? (representativeNode?.labelColor || '#fff') : (defaultNodeProps.labelColor || '#ffffff');
     const displayFontSize = isNodeSelected ? (representativeNode?.fontSize || 12) : (defaultNodeProps.fontSize || 14);
     const displayBorderStyle = isNodeSelected ? (representativeNode?.borderStyle || 'solid') : (defaultNodeProps.borderStyle || 'solid');
+    const displayIconName = isNodeSelected ? (representativeNode?.iconName || 'Box') : (defaultNodeProps.iconName || 'Box');
+    const displayIconColor = isNodeSelected ? (representativeNode?.iconColor || '#ffffff') : (defaultNodeProps.iconColor || '#ffffff');
 
-    const displayLinkColor = isLinkSelected ? (representativeLink?.color || '#22d3ee') : (defaultLinkProps.color || '#22d3ee');
-    const displayTrafficSpeed = isLinkSelected ? (representativeLink?.trafficSpeed || 1) : (defaultLinkProps.trafficSpeed || 1);
-    const displayTrafficDensity = isLinkSelected ? (representativeLink?.trafficDensity || 0.02) : (defaultLinkProps.trafficDensity || 0.02);
+    // Link Values to Display
     const displayLinkLabel = isLinkSelected ? (representativeLink?.label || '') : (defaultLinkProps.label || '');
     const displayLinkLabelSize = isLinkSelected ? (representativeLink?.labelSize || 12) : (defaultLinkProps.labelSize || 12);
-    const displayLinkLabelColor = isLinkSelected ? (representativeLink?.labelColor || '#fff') : (defaultLinkProps.labelColor || '#fff');
-    // For boolean toggle, default to true if undefined
-    const displayShowLabelBackground = isLinkSelected 
-        ? (representativeLink?.showLabelBackground !== false) 
-        : (defaultLinkProps.showLabelBackground !== false);
-
+    const displayLinkLabelColor = isLinkSelected ? (representativeLink?.labelColor || '#ffffff') : (defaultLinkProps.labelColor || '#ffffff');
+    const displayShowLabelBackground = isLinkSelected ? (representativeLink?.showLabelBackground !== false) : (defaultLinkProps.showLabelBackground !== false);
+    const displayLinkColor = isLinkSelected ? (representativeLink?.color || '#22d3ee') : (defaultLinkProps.color || '#22d3ee');
+    const displayTrafficSpeed = isLinkSelected ? (representativeLink?.trafficSpeed ?? 1) : (defaultLinkProps.trafficSpeed ?? 1);
+    const displayTrafficDensity = isLinkSelected ? (representativeLink?.trafficDensity ?? 0.02) : (defaultLinkProps.trafficDensity ?? 0.02);
 
     return (
         <div className="absolute top-6 left-6 flex flex-col gap-3 z-20">
@@ -229,6 +229,13 @@ const EditorPanel: React.FC<EditorPanelProps> = ({
                     title="Add Circle"
                 >
                     <Circle className="w-5 h-5" />
+                </button>
+                 <button 
+                    onClick={() => setTool(tool === 'SVG' ? 'SELECT' : 'SVG')}
+                    className={`p-2 rounded-lg transition-all ${tool === 'SVG' ? 'bg-cyan-600 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-800'}`}
+                    title="Add Icon Node"
+                >
+                    <Image className="w-5 h-5" />
                 </button>
                 <button 
                     onClick={() => setTool(tool === 'TEXT' ? 'SELECT' : 'TEXT')}
@@ -292,45 +299,84 @@ const EditorPanel: React.FC<EditorPanelProps> = ({
                             {isNodeSelected && !multipleSelected && representativeNode && (
                                 <div className="space-y-1">
                                     <label className="text-[10px] text-gray-400 uppercase font-bold flex items-center gap-1"><Type className="w-3 h-3"/> Label</label>
-                                    <input 
-                                        type="text" 
+                                    <textarea 
                                         value={representativeNode.label} 
                                         onChange={(e) => onUpdateItem({ label: e.target.value })}
-                                        className="w-full bg-gray-800 border border-gray-700 rounded px-2 py-1 text-sm text-white focus:border-cyan-500 outline-none"
+                                        className="w-full bg-gray-800 border border-gray-700 rounded px-2 py-1 text-sm text-white focus:border-cyan-500 outline-none resize-y min-h-[40px]"
+                                        rows={representativeNode.label.includes('\n') ? 3 : 2}
                                     />
                                 </div>
                             )}
-                            
-                            <ColorInput 
-                                label={<span><Palette className="w-3 h-3 inline mr-1"/> Fill Color</span>}
-                                value={displayColor}
-                                onChange={(val) => updateNodeProp('color', val)}
-                            />
-                            
-                            <ColorInput 
-                                label={<span><AlignCenter className="w-3 h-3 inline mr-1"/> Border Color</span>}
-                                value={displayBorderColor}
-                                onChange={(val) => updateNodeProp('borderColor', val)}
-                            />
 
-                            <div className="flex gap-2">
-                                <button
-                                    onClick={() => updateNodeProp('borderStyle', 'solid')}
-                                    className={`flex-1 py-1.5 rounded border border-gray-700 flex items-center justify-center transition-all ${displayBorderStyle === 'solid' ? 'bg-cyan-900/50 border-cyan-500' : 'bg-gray-800 hover:bg-gray-700'}`}
-                                    title="Solid Border"
-                                >
-                                    <div className={`w-8 h-0 border-t-2 ${displayBorderStyle === 'solid' ? 'border-cyan-400' : 'border-gray-500'}`}></div>
-                                </button>
-                                <button
-                                    onClick={() => updateNodeProp('borderStyle', 'dashed')}
-                                    className={`flex-1 py-1.5 rounded border border-gray-700 flex items-center justify-center transition-all ${displayBorderStyle === 'dashed' ? 'bg-cyan-900/50 border-cyan-500' : 'bg-gray-800 hover:bg-gray-700'}`}
-                                    title="Dashed Border"
-                                >
-                                    <div className={`w-8 h-0 border-t-2 border-dashed ${displayBorderStyle === 'dashed' ? 'border-cyan-400' : 'border-gray-500'}`}></div>
-                                </button>
-                            </div>
+                             {/* SVG specific input */}
+                            {(isSvgSelected || tool === 'SVG') && (
+                                <>
+                                    <div className="space-y-1">
+                                        <div className="flex justify-between items-center">
+                                            <label className="text-[10px] text-gray-400 uppercase font-bold flex items-center gap-1"><Search className="w-3 h-3"/> Icon Name (Lucide)</label>
+                                            <a 
+                                                href="https://lucide.dev/icons/" 
+                                                target="_blank" 
+                                                rel="noopener noreferrer" 
+                                                className="text-[9px] text-cyan-500 hover:text-cyan-400 flex items-center gap-1 hover:underline"
+                                                title="Browse Lucide Icons"
+                                            >
+                                                List <ExternalLink className="w-2.5 h-2.5" />
+                                            </a>
+                                        </div>
+                                        <input 
+                                            type="text"
+                                            value={displayIconName} 
+                                            onChange={(e) => updateNodeProp('iconName', e.target.value)}
+                                            className="w-full bg-gray-800 border border-gray-700 rounded px-2 py-1 text-sm text-white focus:border-cyan-500 outline-none"
+                                            placeholder="e.g. Server, Database, Cloud..."
+                                        />
+                                    </div>
 
-                            <div className="h-px bg-gray-800 my-2"></div>
+                                    <ColorInput 
+                                        label={<span><Palette className="w-3 h-3 inline mr-1"/> Icon Color</span>}
+                                        value={displayIconColor}
+                                        onChange={(val) => updateNodeProp('iconColor', val)}
+                                    />
+
+                                    <div className="h-px bg-gray-800 my-2"></div>
+                                </>
+                            )}
+                            
+                            {/* Standard Props (Hidden for SVG) */}
+                            {(!isSvgSelected && tool !== 'SVG') && (
+                                <>
+                                    <ColorInput 
+                                        label={<span><Palette className="w-3 h-3 inline mr-1"/> Fill Color</span>}
+                                        value={displayColor}
+                                        onChange={(val) => updateNodeProp('color', val)}
+                                    />
+                                    
+                                    <ColorInput 
+                                        label={<span><AlignCenter className="w-3 h-3 inline mr-1"/> Border Color</span>}
+                                        value={displayBorderColor}
+                                        onChange={(val) => updateNodeProp('borderColor', val)}
+                                    />
+
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={() => updateNodeProp('borderStyle', 'solid')}
+                                            className={`flex-1 py-1.5 rounded border border-gray-700 flex items-center justify-center transition-all ${displayBorderStyle === 'solid' ? 'bg-cyan-900/50 border-cyan-500' : 'bg-gray-800 hover:bg-gray-700'}`}
+                                            title="Solid Border"
+                                        >
+                                            <div className={`w-8 h-0 border-t-2 ${displayBorderStyle === 'solid' ? 'border-cyan-400' : 'border-gray-500'}`}></div>
+                                        </button>
+                                        <button
+                                            onClick={() => updateNodeProp('borderStyle', 'dashed')}
+                                            className={`flex-1 py-1.5 rounded border border-gray-700 flex items-center justify-center transition-all ${displayBorderStyle === 'dashed' ? 'bg-cyan-900/50 border-cyan-500' : 'bg-gray-800 hover:bg-gray-700'}`}
+                                            title="Dashed Border"
+                                        >
+                                            <div className={`w-8 h-0 border-t-2 border-dashed ${displayBorderStyle === 'dashed' ? 'border-cyan-400' : 'border-gray-500'}`}></div>
+                                        </button>
+                                    </div>
+                                    <div className="h-px bg-gray-800 my-2"></div>
+                                </>
+                            )}
 
                             <div className="space-y-2">
                                 <div className="flex justify-between items-center">

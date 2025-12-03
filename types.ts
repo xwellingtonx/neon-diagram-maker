@@ -6,7 +6,7 @@ export interface Coordinate {
 
 export interface Node {
     id: string;
-    type: 'circle' | 'rect' | 'text';
+    type: 'circle' | 'rect' | 'text' | 'svg';
     label: string;
     x: number;
     y: number;
@@ -18,6 +18,8 @@ export interface Node {
     borderStyle?: 'solid' | 'dashed';
     labelColor: string;
     fontSize: number;
+    iconName?: string; // New: Lucide icon name
+    iconColor?: string; // New: Icon specific color
 }
 
 export interface Link {

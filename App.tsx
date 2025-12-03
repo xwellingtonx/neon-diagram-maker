@@ -23,7 +23,7 @@ const App: React.FC = () => {
     const [globalSpeed, setGlobalSpeed] = useState(1);
     
     // Editor State
-    const [tool, setTool] = useState<'SELECT' | 'RECT' | 'CIRCLE' | 'TEXT' | 'CONNECT'>('SELECT');
+    const [tool, setTool] = useState<'SELECT' | 'RECT' | 'CIRCLE' | 'TEXT' | 'CONNECT' | 'SVG'>('SELECT');
     const [connectionStartId, setConnectionStartId] = useState<string | null>(null);
     const [cornerRadius, setCornerRadius] = useState(24);
     
@@ -51,7 +51,9 @@ const App: React.FC = () => {
         labelColor: '#ffffff',
         fontSize: 14,
         width: 80,
-        height: 80
+        height: 80,
+        iconName: 'Box',
+        iconColor: '#ffffff'
     });
 
     // Default props for new links
@@ -129,7 +131,9 @@ const App: React.FC = () => {
             borderWidth: n.borderWidth ?? defaultNodeProps.borderWidth!,
             borderStyle: n.borderStyle || 'solid',
             labelColor: n.labelColor || defaultNodeProps.labelColor!,
-            fontSize: n.fontSize ?? defaultNodeProps.fontSize!
+            fontSize: n.fontSize ?? defaultNodeProps.fontSize!,
+            iconName: n.iconName || (n.type === 'svg' ? 'Box' : undefined),
+            iconColor: n.iconColor || defaultNodeProps.iconColor!
         }));
 
         const safeLinks = (data.links || []).map(l => ({
@@ -462,17 +466,18 @@ const App: React.FC = () => {
     const handleCanvasClick = (x: number, y: number) => {
         setSelection({ nodes: [], links: [] });
         
-        if (tool === 'RECT' || tool === 'CIRCLE' || tool === 'TEXT') {
+        if (tool === 'RECT' || tool === 'CIRCLE' || tool === 'TEXT' || tool === 'SVG') {
             pushHistory();
             const snapX = Math.round(x / 20) * 20;
             const snapY = Math.round(y / 20) * 20;
             
             const isText = tool === 'TEXT';
+            const isSvg = tool === 'SVG';
             
             const newNode: Node = {
                 id: `n-${Date.now()}`,
-                type: isText ? 'text' : (tool === 'RECT' ? 'rect' : 'circle'),
-                label: isText ? 'New Text' : `Node ${nodes.length + 1}`,
+                type: isText ? 'text' : (isSvg ? 'svg' : (tool === 'RECT' ? 'rect' : 'circle')),
+                label: isText ? 'New Text' : (isSvg ? 'New Icon' : `Node ${nodes.length + 1}`),
                 x: snapX,
                 y: snapY,
                 width: isText ? 100 : (defaultNodeProps.width || 80),
@@ -482,7 +487,9 @@ const App: React.FC = () => {
                 borderWidth: defaultNodeProps.borderWidth || 2,
                 borderStyle: isText ? 'solid' : (defaultNodeProps.borderStyle || 'solid'),
                 labelColor: defaultNodeProps.labelColor || '#fff',
-                fontSize: defaultNodeProps.fontSize || 14
+                fontSize: defaultNodeProps.fontSize || 14,
+                iconName: isSvg ? 'Box' : undefined,
+                iconColor: defaultNodeProps.iconColor || '#ffffff'
             };
             setNodes(prev => [...prev, newNode]);
             setTool('SELECT');
@@ -624,7 +631,7 @@ const App: React.FC = () => {
 
         const handleKeyDown = (e: KeyboardEvent) => {
             const target = e.target as HTMLElement;
-            if (target.tagName === 'INPUT') return;
+            if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
 
             if (e.key === 'Delete' || e.key === 'Backspace') handleDelete();
             if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); handleUndo(); }

@@ -2,13 +2,14 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Node, Link, Signal } from '../types';
 import { ZoomIn, ZoomOut, Maximize, Move } from 'lucide-react';
+import * as LucideIcons from 'lucide-react';
 import { CANVAS_WIDTH, CANVAS_HEIGHT } from '../constants';
 
 interface DiagramCanvasProps {
     nodes: Node[];
     links: Link[];
     signals: Signal[];
-    tool: 'SELECT' | 'RECT' | 'CIRCLE' | 'TEXT' | 'CONNECT';
+    tool: 'SELECT' | 'RECT' | 'CIRCLE' | 'TEXT' | 'CONNECT' | 'SVG';
     selection: { nodes: string[], links: string[] };
     onNodeMove: (id: string, x: number, y: number) => void;
     onNodeResize: (id: string, w: number, h: number) => void;
@@ -378,7 +379,14 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
                         const isSelected = selection.nodes.includes(node.id);
                         const isConnecting = connectionStartId === node.id;
                         const isText = node.type === 'text';
+                        const isSvg = node.type === 'svg';
                         const strokeDasharray = node.borderStyle === 'dashed' ? '6 4' : undefined;
+
+                        let IconComponent = null;
+                        if (isSvg && node.iconName) {
+                            // @ts-ignore
+                            IconComponent = LucideIcons[node.iconName] || LucideIcons['HelpCircle'];
+                        }
                         
                         return (
                             <g 
@@ -405,7 +413,7 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
                                 )}
 
                                 {/* Shape */}
-                                {node.type === 'circle' ? (
+                                {node.type === 'circle' && (
                                     <circle 
                                         r={node.width / 2} 
                                         fill={node.color} 
@@ -414,32 +422,90 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
                                         strokeDasharray={strokeDasharray}
                                         className="shadow-xl"
                                     />
-                                ) : (
+                                )}
+                                {node.type === 'rect' && (
                                     <rect 
                                         x={-node.width / 2} 
                                         y={-node.height / 2} 
                                         width={node.width} 
                                         height={node.height} 
-                                        rx={isText ? 0 : 8} 
+                                        rx={8} 
                                         fill={node.color} 
                                         stroke={node.borderColor} 
                                         strokeWidth={node.borderWidth}
                                         strokeDasharray={strokeDasharray}
                                     />
                                 )}
+                                {node.type === 'text' && (
+                                    <rect 
+                                        x={-node.width / 2} 
+                                        y={-node.height / 2} 
+                                        width={node.width} 
+                                        height={node.height} 
+                                        rx={0} 
+                                        fill={node.color} 
+                                        stroke={node.borderColor} 
+                                        strokeWidth={node.borderWidth}
+                                        strokeDasharray={strokeDasharray}
+                                    />
+                                )}
+                                {node.type === 'svg' && (
+                                    // Transparent hit area for SVG to ensure easy selection/dragging
+                                    <rect 
+                                        x={-node.width / 2} 
+                                        y={-node.height / 2} 
+                                        width={node.width} 
+                                        height={node.height} 
+                                        fill="transparent" 
+                                        stroke="none"
+                                    />
+                                )}
+                                {node.type === 'svg' && IconComponent && (
+                                    // Move icon to top portion: shifted up by h/4 and added padding
+                                    <g transform={`translate(${-node.width/4}, ${-node.height/2 + 10})`}>
+                                        <foreignObject width={node.width/2} height={node.height/2} style={{ overflow: 'visible' }}>
+                                             <IconComponent 
+                                                width={node.width/2} 
+                                                height={node.height/2} 
+                                                color={node.iconColor || '#ffffff'} 
+                                             />
+                                        </foreignObject>
+                                    </g>
+                                )}
+                                {/* Fallback for SVG if using foreignObject fails or for alignment */}
+                                {node.type === 'svg' && IconComponent && (
+                                     <g transform="translate(0, 0)" style={{ pointerEvents: 'none' }}>
+                                         {/* We render it via react component which renders SVG. */}
+                                     </g>
+                                )}
 
-                                {/* Label */}
-                                <text 
-                                    y={isText ? 0 : 5}
-                                    dominantBaseline={isText ? "middle" : "auto"}
-                                    textAnchor="middle" 
-                                    fill={node.labelColor} 
-                                    fontSize={node.fontSize} // Use property
-                                    fontWeight="bold"
-                                    className="pointer-events-none select-none"
+
+                                {/* Label (Render via HTML for wrapping and multi-line support) */}
+                                <foreignObject 
+                                    x={-node.width / 2} 
+                                    y={isSvg ? 20 : -node.height / 2}
+                                    width={node.width}
+                                    height={isSvg ? (node.height / 2 - 20) : node.height}
+                                    className="pointer-events-none"
                                 >
-                                    {node.label}
-                                </text>
+                                    <div style={{
+                                        width: '100%',
+                                        height: '100%',
+                                        display: 'flex',
+                                        justifyContent: 'center',
+                                        alignItems: isSvg ? 'flex-start' : 'center',
+                                        textAlign: 'center',
+                                        color: node.labelColor,
+                                        fontSize: `${node.fontSize}px`,
+                                        fontWeight: 'bold',
+                                        whiteSpace: 'pre-wrap', // Enables multi-line wrapping
+                                        lineHeight: 1.1,
+                                        fontFamily: 'sans-serif',
+                                        overflow: 'hidden'
+                                    }}>
+                                        {node.label}
+                                    </div>
+                                </foreignObject>
 
                                 {/* Resize Handle (Only when selected and singular) */}
                                 {isSelected && selection.nodes.length === 1 && (
